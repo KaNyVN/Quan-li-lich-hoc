@@ -1,97 +1,124 @@
-# Better Phenikaa Schedule
+# Better Phenikaa Schedule — Bài tập Generics trong Flutter
 
-Bài tập lớn nhóm 1 — ứng dụng **thời khóa biểu & lịch thi** cho sinh viên Phenikaa University.
+Ứng dụng quản lý **lịch học và lịch thi** dành cho sinh viên Phenikaa University, phát triển bằng **Flutter/Dart**.
 
-## Nhóm
+Repository này là môi trường làm việc trên nhánh `feature/qldt-intake-khanh`, tập trung vào chức năng **lấy và chuẩn hóa dữ liệu từ QLĐT**. Bài tập Generics được áp dụng trực tiếp lên các đối tượng dữ liệu của dự án, không xây dựng một ví dụ không liên quan.
 
-| STT | Họ và tên | MSSV | Vai trò chính |
-|---:|---|---|---|
-| 1 | Đăng Văn Nam Khánh | 24100041 | QLĐT intake / session / parser |
-| 2 | Trần Đỗ Quốc Huy | 21011607 | Timetable + exam UI |
-| 3 | Trần Văn Dương | 24100043 | Local DB + sync |
-| 4 | Nguyễn Minh Đạo | 24100222 | Lead + widget + settings |
+## 1. Mục tiêu bài tập
 
-## Mục tiêu kỹ thuật
+**Câu 1:** Xây dựng lớp Generic `QldtEntity<T>` mô tả đặc điểm chung của các đối tượng trong ứng dụng.
 
-- Flutter/Dart là stack chính.
-- Đăng nhập qua luồng QLĐT/Microsoft chính thức; không tự thu mật khẩu.
-- Dữ liệu lịch học/lịch thi lưu local để xem offline.
-- Không dùng Firebase/backend/cloud database cho dữ liệu sinh viên.
-- UI không truy vấn SQL trực tiếp; mọi truy cập dữ liệu đi qua repository contract.
-- Widget chỉ đọc `WidgetSnapshot` đã được app ghi local.
-- Đồng bộ lỗi phải giữ nguyên dữ liệu cũ đang dùng được.
+**Câu 2:** Cho các lớp dữ liệu hiện có kế thừa (`extends`) từ lớp Generic; sử dụng `Object` và `runtimeType` để xử lý, nhận biết kiểu đối tượng một cách tổng quát.
 
-## Stack đã chuẩn hóa
+Mục đích: tái sử dụng thuộc tính và phương thức chung, hạn chế khai báo trùng lặp và giúp mã nguồn dễ mở rộng.
 
-- Flutter 3.47.2 / Dart 3.13
-- Riverpod + GoRouter
-- Drift/SQLite
-- Dio + CookieJar + InAppWebView + HTML parser
-- Secure Storage + SharedPreferences
-- Home Widget
-- Freezed/JSON codegen
-- Mocktail
-- Very Good Analysis + Riverpod Lint
-- Dev Container + GitHub Actions
+> Trong Dart, `Object` là kiểu gốc của các đối tượng không-null; `runtimeType` trả về một giá trị `Type`. Dart không sử dụng lớp `Class<?>` như Java.
 
-## Bắt đầu nhanh
+## 2. Đối tượng trong project
 
-### Codespaces / Dev Container — khuyến nghị
+| Lớp | Ý nghĩa | Thông tin chính |
+|---|---|---|
+| `UserDto` | Sinh viên | Mã sinh viên, họ tên |
+| `SemesterDto` | Học kỳ | Mã, tên, ngày bắt đầu/kết thúc |
+| `ClassDto` | Buổi học | Mã, môn học, phòng, giảng viên, thời gian |
+| `ExamDto` | Lịch thi | Mã, môn học, phòng thi, thời gian |
+| `QldtImportPayload` | Gói dữ liệu đồng bộ | Sinh viên, học kỳ, lịch học, lịch thi, thời điểm đồng bộ |
 
-1. Tạo Codespace trực tiếp trên **feature branch của mình**.
-2. Chọn Dev Container `Better Phenikaa Schedule`.
-3. Container tự cài Flutter 3.47.2, Dart, Android SDK, tắt telemetry, cấu hình Git safe-directory, tạo platform Android/Web nếu thiếu và chạy `flutter pub get`.
-4. Sau khi terminal mở, chỉ cần chạy:
+### Thiết kế Generics dự kiến
+
+```text
+                  QldtEntity<T>
+                  - id: T
+                  + thongTin(): String
+                         |
+           +-------------+-------------+
+           |             |             |
+        UserDto      SemesterDto     ClassDto      ExamDto
+```
+
+Các DTO kế thừa `QldtEntity<String>` để dùng chung định danh và phương thức hiển thị thông tin. `UserDto` vẫn giữ `studentId` phục vụ nghiệp vụ QLĐT.
+
+**Lưu ý trạng thái:** Bảng và sơ đồ trên mô tả thiết kế của bài tập. Việc các file Generics đã được thêm vào code hay chưa cần được xác nhận bằng commit và kết quả chạy kiểm thử; README không thay thế bằng chứng thực thi.
+
+## 3. Các file của bài tập
+
+| Đường dẫn | Nội dung |
+|---|---|
+| `lib/core/contracts/qldt_entity.dart` | Lớp cha Generic `QldtEntity<T>` (cần bổ sung) |
+| `lib/core/contracts/models.dart` | Các DTO của dự án; chỉnh sửa để kế thừa lớp Generic |
+| `test/qldt_generics_test.dart` | Test minh họa Generics, `extends`, `Object`, `runtimeType` (cần bổ sung) |
+| `lib/core/contracts/repositories.dart` | Các interface trao đổi dữ liệu, giữ nguyên trong bài tập |
+
+## 4. Ví dụ sử dụng
+
+Sau khi áp dụng thay đổi ở mục 3, có thể tạo nhiều đối tượng và xử lý chung:
+
+```dart
+final sinhVien = UserDto(
+  studentId: 'SV01',
+  displayName: 'Nguyen Van A',
+);
+
+final buoiHoc = ClassDto(
+  id: 'LH01',
+  subjectCode: 'INT123',
+  subjectName: 'Lap trinh di dong',
+  room: 'A2-301',
+  lecturer: 'Giang vien A',
+  startAt: DateTime(2026, 10, 19, 7),
+  endAt: DateTime(2026, 10, 19, 9),
+);
+
+final List<QldtEntity<String>> danhSach = [sinhVien, buoiHoc];
+
+for (final Object doiTuong in danhSach) {
+  print('Kieu: ${doiTuong.runtimeType}');
+  if (doiTuong is QldtEntity<String>) {
+    print(doiTuong.thongTin());
+  }
+}
+```
+
+**Giải thích:** `<T>` cho phép khai báo kiểu dữ liệu dùng chung; `extends` tái sử dụng mã nguồn lớp cha; `Object` chứa tham chiếu đến các kiểu đối tượng khác nhau; `runtimeType` cho biết kiểu thực tế khi chạy.
+
+## 5. Cách chạy và kiểm tra
+
+Mở Codespaces trên đúng nhánh làm việc, sau đó chạy:
 
 ```bash
 bash tool/setup.sh
+flutter analyze
+flutter test
 ```
 
-`tool/setup.sh` sẽ tự bootstrap, format, analyze và test. Không cần tự cài Flutter/Dart/JDK hay sửa Git `safe.directory` thủ công.
-
-Trong quá trình code, dùng:
+Để chạy riêng bài tập Generics **sau khi tạo file test**:
 
 ```bash
-bash tool/quality.sh
+flutter test test/qldt_generics_test.dart -r expanded
 ```
 
-Lệnh này tự format code rồi chạy analyze + test.
+Kết quả mong đợi là `No issues found!` và `All tests passed!`. Chỉ ghi nhận hoàn thành khi terminal thực tế trả về các kết quả này.
 
-### Máy local
+## 6. Minh chứng nộp bài
 
-Yêu cầu Flutter 3.47.2, Dart 3.13, JDK 17 và Android SDK. Sau đó chạy:
+- **Link commit:** lấy URL commit thực tế sau khi hoàn thành và push code lên GitHub.
+- **Link README:** trang README của nhánh hiện tại.
+- **Code chính:** `qldt_entity.dart`, `models.dart`, `qldt_generics_test.dart`.
+- **Ảnh chụp:** mã nguồn lớp Generic, các lớp `extends` và terminal chạy test thành công.
 
-```bash
-bash tool/setup.sh
-```
+Không đưa ảnh chụp chứa mật khẩu, token, cookie hoặc thông tin đăng nhập QLĐT thật.
 
-## Nhánh làm việc
+## 7. Tiếp tục phát triển bài tập lớn
 
-- `main`: bản ổn định.
-- `develop`: nhánh tích hợp.
-- `feature/qldt-intake-khanh`
-- `feature/timetable-exam-huy`
-- `feature/local-data-sync-duong`
-- `feature/widget-settings-dao`
+Phần Generics chỉ thay đổi cách tổ chức các DTO. Các chức năng tiếp theo của TV1 vẫn là đăng nhập QLĐT/Microsoft chính thức, quản lý phiên đăng nhập, lấy dữ liệu, parser lịch học/lịch thi và tạo `QldtImportPayload`. Phần lưu SQLite và tích hợp với TV3 sẽ được đối chiếu khi hai bên hoàn thiện.
 
-Không push tính năng trực tiếp vào `main`. Feature branch mở PR vào `develop`; chỉ merge `develop` vào `main` khi quality gate xanh.
+Không tự ý merge vào nhánh tích hợp của nhóm khi chưa thống nhất.
 
-## Contract freeze
+## 8. Thông tin dự án
 
-Các contract trong `lib/core/contracts/` là điểm nối giữa 4 phần việc. Thay đổi model/repository contract cần Lead và thành viên đang tiêu thụ contract đó review trước khi merge.
+- **Sinh viên thực hiện phần QLĐT:** Đặng Văn Nam Khánh
+- **MSSV:** 24100041
+- **Công nghệ:** Flutter, Dart
+- **Nhánh làm việc:** `feature/qldt-intake-khanh`
 
-## Lệnh chuẩn
-
-```bash
-bash tool/setup.sh
-bash tool/quality.sh
-dart run build_runner build --delete-conflicting-outputs
-flutter run
-flutter build apk --debug
-```
-
-## Quy tắc dữ liệu nhạy cảm
-
-Tuyệt đối không commit mật khẩu, cookie/session thật, token, HTML chứa dữ liệu sinh viên, file DB thật, keystore hoặc ảnh chụp chứa thông tin tài khoản. Xem `SECURITY.md`.
-
-Tài liệu chi tiết: `docs/ARCHITECTURE.md`, `docs/WORKFLOW.md`, `LEADER_FIRST_RUN.md`.
+Tài liệu dự án: [Kiến trúc](docs/ARCHITECTURE.md) · [Quy trình làm việc](docs/WORKFLOW.md) · [Quy tắc bảo mật](SECURITY.md).
